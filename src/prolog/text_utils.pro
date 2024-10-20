@@ -56,7 +56,6 @@ process_char('ἦ', 'η').
 process_char('ῇ', 'η').
 process_char('ἠ', 'η').
 
-
 process_char(X, X).
 
 % Remove accents from input string
