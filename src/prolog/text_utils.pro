@@ -59,7 +59,8 @@ process_char('ἠ', 'η').
 process_char(X, X).
 
 % Remove accents from input string
-remove_accents(Input, Output) :-
+remove_accents(Input, LowerNoAccents) :-
     atom_chars(Input, CodesIn),
     maplist(process_char, CodesIn, CodesOut),
-    atom_chars(Output, CodesOut).
+    atom_chars(Output, CodesOut),
+    downcase_atom(Output, LowerNoAccents).

@@ -1,3 +1,5 @@
+:- use_module(library(yall)).
+
 :- ['src/prolog/text_utils.pro'].
 
 book_name(1, matthew, matthew).
@@ -156,14 +158,88 @@ parse_word(Word, ParsedWord) :-
     remove_accents(Lemma, LemmaWithoutAccents),
 
     ParsedWord = word(
-        Word, Book, Chapter, Verse, POS, Features,
+        Word, Book, Chapter, Verse, 
+        POS, Features,
         Text, WordAtom, NormalizedWord, Lemma, 
         NormalizedWordNoAccents, LemmaWithoutAccents
     ).
 
-load_book(Filename, Book) :-
+load_book(Filename, ParsedWords) :-
     read_file_to_string(Filename, BookString, []),
     atomics_to_string(AllWords, '\n', BookString),
     exclude({}/[Line]>>(Line = ''), AllWords, Words),
-    maplist(parse_word, Words, Book).
+    maplist(parse_word, Words, ParsedWords).
+
+build_word(FullWord, WordNumber, Word) :-
+    FullWord = word(
+        _Word, _Book, _Chapter, _Verse, 
+        POS, Features,
+        Text, WordAtom, NormalizedWord, Lemma, 
+        NormalizedWordNoAccents, LemmaWithoutAccents
+    ),
+
+    Word = word(WordNumber, Text, POS, Features, WordAtom, NormalizedWord, Lemma, NormalizedWordNoAccents, LemmaWithoutAccents).
+
+build_verse(Words, VerseNumber, Verse) :-
+    include({VerseNumber}/[Word]>>(arg(4, Word, VerseNumber)), Words, VerseWords),
+    length(VerseWords, NumWords),
+    findall(X, between(1, NumWords, X), WordNumbers),
+    maplist(build_word, VerseWords, WordNumbers, VerseWords1),
+
+    Verse = verse(VerseNumber, VerseWords1).
+
+build_chapter(Words, ChapterNumber, Chapter) :-
+    include({ChapterNumber}/[Word]>>(arg(3, Word, ChapterNumber)), Words, ChapterWords),
+    maplist({}/[Word, Verse]>>(arg(4, Word, Verse)), ChapterWords, AllVerses),
+    sort(AllVerses, VerseNumbers),
+    maplist(build_verse(ChapterWords), VerseNumbers, Verses),
+
+    Chapter = chapter(ChapterNumber, Verses).
+
+build_book(Words, Book) :-
+    maplist({}/[Word, Chapter]>>(arg(3, Word, Chapter)), Words, AllChapters),
+    sort(AllChapters, ChapterNumbers),
+    maplist(build_chapter(Words), ChapterNumbers, Chapters),
+    
+    Words = [Word1 | _],
+    arg(2, Word1, book(BookNumber, BookName, Author)),
+    Book = book(BookNumber, BookName, Author, Chapters).
+
+build_nt(NT) :-
+    expand_file_name('./*.txt', BookFiles),
+    maplist(load_book, BookFiles, BookWords),
+    maplist(build_book, BookWords, Books),
+    flatten(BookWords, AllWords),
+    NT = nt(Books, AllWords).
+
+assert_verse(BookNumber, ChapterNumber, verse(VerseNumber, Words)) :-
+    assertz(verse(BookNumber, ChapterNumber, VerseNumber, Words)).
+
+assert_chapter(BookNumber, chapter(ChapterNumber, Verses)) :-
+    maplist(assert_verse(BookNumber, ChapterNumber), Verses),
+    assertz(chapter(ChapterNumber, Verses)).
+
+assert_book(book(BookNumber, BookName, Author, Chapters)) :-
+    maplist(assert_chapter(BookNumber), Chapters),
+    assertz(book(BookNumber, BookName, Author, Chapters)).
+
+assert_nt(nt(Books, Words)) :-
+    maplist(assertz, Words),
+    maplist(assert_book, Books).
+
+format_verse(BookNumber, ChapterNumber, VerseNumber, FormattedVerse) :-
+    verse(BookNumber, ChapterNumber, VerseNumber, Words),
+    maplist({}/[Word, Text]>>(arg(2, Word, Text)), Words, Texts),
+    atomics_to_string(Texts, ' ', FormattedVerse).
+
+find(UnaccentedLemma, Hits, FormattedVerses) :-
+    findall(
+        hit(Text, BookNumber, Chapter, Verse, POS, Features, Lemma),
+        word(_, book(BookNumber, _, _), Chapter, Verse, POS, Features, Text, _, _, Lemma, _, UnaccentedLemma),
+        Hits),
+    maplist({}/[hit(_, BookNumber, Chapter, Verse, _, _, _), FormattedVerse]>>
+        (format_verse(BookNumber, Chapter, Verse, FormattedVerse)), Hits, FormattedVerses).
+
+
+
 
