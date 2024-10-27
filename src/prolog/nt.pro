@@ -1,6 +1,10 @@
 :- use_module(library(yall)).
+:- use_module(library(strings)).
 
-:- ['src/prolog/text_utils.pro'].
+:- [
+    'src/prolog/text_utils.pro',
+    'src/prolog/lp_utils.pro'
+    ].
 
 book_name(1, matthew, matthew).
 book_name(2, mark, mark).
@@ -30,8 +34,7 @@ book_name(25, iii_john, john3).
 book_name(26, jude, jude).
 book_name(27, revelation, john4).
 
-
- book_chapter_verse(X, Book, Chapter, Verse) :-
+book_chapter_verse(X, Book, Chapter, Verse) :-
     sub_atom(X, 0, 2, _, BookCode),
     sub_atom(X, 2, 2, _, ChapterCode),
     sub_atom(X, 4, 2, _, VerseCode),
@@ -239,6 +242,152 @@ find(UnaccentedLemma, Hits, FormattedVerses) :-
         Hits),
     maplist({}/[hit(_, BookNumber, Chapter, Verse, _, _, _), FormattedVerse]>>
         (format_verse(BookNumber, Chapter, Verse, FormattedVerse)), Hits, FormattedVerses).
+
+parse_verse_xbar(Model, BookNumber, ChapterNumber, VerseNumber, ParsedVerse) :-
+    format_verse(BookNumber, ChapterNumber, VerseNumber, Verse),
+
+    Prompt = {|string(Verse) ||
+
+Given a Koine Greek sentence, generate its complete syntactic representation in Prolog following these specifications:
+
+1. Represent the overall sentence structure as s(coord([...])) when coordination exists, or as s(...) for single clauses.
+
+2. For each clause, show:
+   - Full functional projection: comp/1 for complementizers
+   - Full extended verbal projection: vp/2 or vp/3 including arguments
+   - All determiner phrases as dp(det(D)) for pronouns or dp(det(D), n(N)) for full DPs
+   - Preposition phrases as pp(p(P), dp(...))
+   - Negation when present as neg(Word)
+   
+3. For coordination, use:
+   - coord([...]) to list all coordinated elements
+   - Include the coordinator in the structure
+
+4. Maintain strict binary branching by:
+   - Using only binary predicates or unary predicates 
+   - Never allowing more than two arguments per phrase
+   - Using embedded structures rather than flat lists
+
+5. Include all lexical entries in the form:
+```prolog
+lex(Word, Category).
+```
+where Category must be one of:
+- conj (coordinators)
+- comp (complementizers)
+- v (verbs)
+- n (nouns)
+- det (determiners/articles/pronouns)
+- p (prepositions)
+- adv (adverbs)
+- neg (negation)
+
+6. The complete output must contain:
+   - The full sentence structure showing all syntactic relationships
+   - Every word from the input sentence in its proper syntactic position
+   - A lexical entry for every word
+
+7. Example format:
+```prolog
+% Main sentence structure
+s(coord([
+    s(subord(comp(Word1), adv(Word2), 
+        s(comp(Word3),
+          vp(v(Word4), dp(det(Word5))),
+          vp(v(Word6), dp(det(Word7), n(Word8))))
+    )),
+    s(vp(v(Word9))),
+    s(vp(v(Word10), dp(det(Word11), n(Word12)))),
+    s(vp(v(Word13))),
+    % ... continue for all clauses
+])).
+
+% Lexical entries
+lex(Word1, Category1, MorphosyntacticFeatures1).
+lex(Word2, Category2, MorphosyntacticFeatures2).
+lex(Word3, Category3, MorphosyntacticFeatures3).
+% ... continue for all words
+```
+
+In identifying the morphosyntactic features of verbs, specify: voice, mood, aspect, tense, person, number.
+
+8. Specific structural requirements:
+   - All complement phrases must be on the right
+   - All specifiers must be on the left
+   - Movement traces must be shown with t(X) where relevant
+   - Adjuncts must attach at the appropriate phrasal level
+   - All pronouns are treated as determiners heading DPs
+
+9. When processing any input:
+   a. First identify all clausal boundaries
+   b. Map the full functional sequence for each clause
+   c. Position all arguments in their proper structural positions
+   d. Add functional projections as needed
+   e. Show coordination structure when present
+   f. Include all lexical items
+
+10. The output must be valid Prolog syntax that could be loaded into a Prolog interpreter.
+
+Apply this format consistently to any input Koine Greek sentence, maintaining the same level of detail and structural representation shown in the format above.
+
+Here is the sentence:
+{Verse}
+    
+    |},
+
+    run_CoT(Model, [Prompt], _, Responses),
+    last(Responses, Response),
+    response_content(Response, ParsedVerse).
+
+system_message('You are an expert in Koine Greek and in analyzing and translating the New Testament').
+
+cross({|string||
+
+⡀⢂⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄⠠⢷⣗⣄⠀⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄⣀⣶⡿⠁⠠⠀⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄⠠⠀⠄
+⡐⠠⢈⠀⠡⠈⠄⠡⠈⠄⠡⠈⠄⠡⠈⠄⠡⠈⠄⠡⢈⠐⠈⣿⣿⣵⣀⠡⢈⠠⠁⠌⠠⠁⠌⠠⠁⠌⡀⢁⢂⣼⣿⣿⠁⠠⠁⠌⠠⠁⠌⠠⠁⠌⠠⠁⠌⠠⠁⠌⠠⠁⠌⠠⠁⠌⡀
+⠄⠡⠀⠌⠠⠁⠌⠠⠁⢂⠁⠂⠌⠠⢁⠈⠄⠡⢈⠐⠠⢈⠐⠸⣿⣿⣷⣵⣄⠠⢈⠠⠁⠌⠠⠁⠌⢀⢐⣴⣿⣿⣿⢇⠠⠁⠌⠠⠁⠌⠐⠠⠁⢂⠡⠈⡐⠠⢁⠈⡐⢈⠠⠁⠌⠐⡀
+⠌⠠⢁⠈⠄⠡⠈⠄⡁⢂⠈⡐⠈⠄⢂⠈⠄⠡⠀⠌⠐⠠⠈⠄⢻⣿⣿⣿⣷⣶⢄⠐⠈⠠⠁⢂⢈⣴⣿⣿⣿⣿⡟⠀⡐⠈⠠⠁⠌⠠⢁⠂⢁⠂⠠⢁⠐⡀⢂⠐⡀⠂⠄⠡⢈⠐⡀
+⠂⠡⠀⠌⠠⠁⠌⠐⡀⢂⠐⡀⢁⠂⠄⡈⠄⠡⠈⠄⡁⢂⠁⠂⠌⣿⣿⣿⣿⣿⣿⣖⢅⠂⢁⣶⣿⣿⣿⣿⣿⣿⠁⡐⢀⠁⢂⠡⠈⡐⠀⠌⡀⠂⡁⢂⠐⡀⢂⠐⡀⠡⢈⠐⡀⠂⠄
+⡁⢂⠡⠈⡐⠈⠄⠡⢀⠂⡐⢀⠂⠌⠠⠐⠈⠄⡁⢂⠐⠠⢈⠐⠠⠹⣿⣿⣿⣿⣿⣿⣿⣵⣿⣿⣿⣿⣿⣿⣿⠇⢁⠀⠂⠌⠠⢀⠡⢀⠁⠂⠄⡁⠐⠠⠐⢀⠂⡐⠠⠁⠄⢂⠠⠁⠂
+⡐⢀⠂⠁⠄⡈⠐⡀⢂⠐⠠⢀⠂⠌⡐⢈⠐⠠⠐⡀⠌⠐⠠⢈⠐⡀⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠀⠄⡈⠐⡈⠐⡀⠂⠄⡈⠐⠠⢀⠁⢂⠁⢂⠐⢀⠂⡁⠂⠄⠂⠌⡀
+⡄⢆⠈⡰⢠⢀⢡⠰⠀⡌⠰⡀⢆⠰⢠⠀⡌⢠⠁⡄⡈⡄⢡⢀⠆⠰⡈⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠁⡰⢠⢀⢡⢀⢡⠀⡁⠆⡄⡁⠆⡄⡈⡄⡈⡄⡈⡄⠰⢠⠁⡌⠰⢠⠀
+⠆⡈⠆⢁⠃⡈⠆⡘⠰⠘⠰⠁⠎⠘⡀⢃⠘⡀⠃⠆⠱⠘⡀⠎⠘⠰⠁⢹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡏⠰⠁⠆⡈⠆⡈⠆⠃⡁⠃⠆⢁⠃⠆⠱⢀⠱⠀⠱⠘⡀⠃⠆⡘⢀⠃⠆
+⢂⠐⡈⢀⠂⡐⠠⢀⠁⠌⡐⠈⠄⡁⠄⢂⠐⡀⠡⠈⠄⡁⠄⡈⠄⠡⠈⠄⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠀⠄⡈⠐⠠⠐⡀⠌⠐⡀⠡⢈⠠⠈⠄⡁⢂⠠⠁⢂⠡⢀⠁⠂⠄⢂⠈⠄
+⢀⠂⡐⢀⠂⠠⠁⠄⡈⠄⡐⢈⠠⠐⡀⠂⠄⠠⠁⠌⠐⡀⢂⠐⢈⠠⠁⢂⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠐⠠⢀⠁⢂⠁⠄⡈⠐⡀⢁⠂⠠⢁⠂⡐⠠⢀⠁⢂⠐⠠⠈⡐⠈⠠⠐⠀
+⣲⣤⣔⣀⠄⠁⢂⠐⢀⠂⠄⠂⡐⠠⢀⠡⠈⠄⠡⢈⠐⠠⠀⠌⠠⠐⠈⠄⠠⢹⣿⣿⣿⣿⣿⣿⣿⡋⠀⠌⡐⠠⠈⠄⡈⠄⠠⢁⠐⠠⢈⠐⠠⠐⡀⠡⠀⠌⡀⠂⢁⠐⢀⣁⣢⣬⢶
+⠈⠙⢻⣿⣿⣷⣶⣬⣄⣀⢂⠐⡀⠂⠄⠂⠡⠈⡐⠠⠈⠄⠡⢈⠐⡈⠐⡈⠐⡀⢿⣿⣿⣿⣿⣿⡿⡀⠡⠐⡀⢂⠁⠂⠄⡈⠐⠠⢈⠐⠠⠈⠄⠂⠐⡀⠡⣐⣠⣬⣶⣾⣿⣿⣟⠕⣉
+⡁⠌⢀⠙⢿⣿⣿⣿⣿⣿⣿⣷⣶⣌⣤⣈⢀⠡⠐⢀⠁⠂⡁⠄⠂⠄⡁⠄⡁⠄⠸⣿⣿⣿⣿⣿⠃⢀⠂⠁⠄⠂⡈⠐⠠⢀⠁⠂⠄⡈⠐⣀⣢⣥⣶⣾⣿⣿⣿⣿⣿⣿⠿⠝⠀⠄⡀
+⠐⡈⢀⠂⡀⠙⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣶⣤⣌⣐⠠⠐⠈⡀⠐⠠⠐⠈⠄⢹⣿⣿⣿⡏⠀⢂⠈⡐⠈⡐⠀⡁⠂⣄⣨⣴⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠛⢀⠐⢈⠠⠀
+⡁⠐⠠⠐⡀⠂⠄⠙⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣶⣤⣅⣂⠁⠌⡐⠀⣿⣿⣿⠈⠐⡀⢂⣀⣡⣤⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢟⠓⠁⠌⡀⠌⠠⢀⠁
+⠠⢉⠀⠂⠄⠡⢈⠐⡀⠙⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣶⣤⣞⣿⣧⣤⣶⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡍⠁⠄⡁⠂⠄⠂⠡⢀⠂
+⡐⠠⢈⠐⡈⠐⡀⠂⠄⣡⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠛⢻⣿⡟⠛⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣮⡦⡐⠠⢀⠁⢂⠁⠂⠄⠂
+⠠⠁⠄⢂⠠⠁⡀⣢⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠛⠋⠉⢀⠀⠤⠐⣾⣿⣿⡀⠠⠀⠄⢈⠙⠛⠿⢿⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⡦⠀⠌⡀⠌⠐⡈⠄
+⠡⠈⠄⠂⡀⣢⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠛⠋⠉⢀⠀⠄⠂⡈⠐⡀⢂⠐⣸⣿⣿⣿⣇⠀⠡⢈⠀⠂⠌⡀⠄⡀⠉⡙⠛⠻⢿⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣢⠀⢂⠁⠄⠂
+⠠⠁⢂⣡⣾⣿⣿⣿⣿⣿⣿⡿⠻⠛⠋⠉⢀⠠⠀⠄⠡⠈⠄⢂⠈⡐⢀⠡⠐⡀⢢⣿⣿⣿⣿⣿⡄⠡⠀⠌⡐⠠⠐⠠⢀⠡⠀⠌⠠⠀⠄⡉⠉⡛⠿⢿⣿⣿⣿⣿⣿⣿⣯⣢⡈⢀⠂
+⢀⣡⣾⣿⣿⡿⠿⠛⠋⠉⡀⠠⠐⠠⠁⠌⢀⠂⠌⠠⢁⠂⠌⢀⠂⡐⠠⢀⠂⠐⣾⣿⣿⣿⣿⣿⣷⡀⠡⠐⡀⢂⠁⠂⠄⠂⡁⠂⠡⢈⠐⢀⠁⠄⠠⠀⠄⡉⠘⠛⠿⢿⣿⣿⣧⡤⡈
+⠾⠟⠋⠉⡀⠠⢀⠂⠄⡁⠐⠠⠁⢂⠁⠌⡀⠂⠌⠐⠠⠐⡈⠠⠐⢀⠁⠂⠌⣸⣿⣿⣿⣿⣿⣿⣿⣇⠐⠠⠐⠠⢈⠐⡈⠐⠠⠁⠂⠄⡈⠄⡈⠄⠡⠈⠄⠠⠁⠂⠄⢂⠀⡉⠙⠛⠦
+⠂⠄⡈⠐⡀⠡⠀⠌⡀⠄⡁⢂⠡⠀⠌⠐⡀⠡⠈⠄⡁⠂⠄⡁⠌⠀⠌⡈⢤⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄⠁⠄⠡⢀⠂⠠⢁⠂⠁⠌⡐⢀⠐⠠⢈⠠⢁⠈⠄⠡⢈⠐⡀⠂⠄⡁⢂⠐
+⡁⠆⡄⢡⠰⢠⠁⠆⡄⢆⠰⢠⢀⢡⠈⡰⢠⠁⡌⢠⢀⠁⢆⠰⢠⢁⠆⡄⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⡈⠰⢠⢈⠰⢠⢈⠰⢠⠰⢠⢈⠰⢠⠰⢠⠈⡄⢡⢀⠆⡰⠈⡄⡰⠀⠆
+⢁⠃⡘⠀⠃⠆⢃⠘⠰⢈⠘⠰⠈⠆⠃⠱⢀⠃⡘⠰⢈⠘⡈⠘⡀⠎⠆⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠁⠃⠆⡈⠆⢃⠈⡘⠰⠘⠰⢈⠘⠰⠘⡀⢃⠘⠰⢈⠰⢁⠘⠰⢁⠃⠆
+⡀⠆⢀⠡⢈⠐⠠⢈⠐⠠⢈⠠⠁⢂⠁⠂⠄⠂⠄⠡⢀⠂⠄⠡⠀⠌⣀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄⠡⠐⡀⠂⠄⠂⠄⡁⠂⠡⠀⠌⡐⠠⠐⠠⢈⠐⠠⠐⠠⠈⠄⢂⠐⡀
+⠄⡈⠄⠂⠄⡈⠐⡀⠂⠡⢀⠂⠌⢀⠂⠡⢈⠐⢈⠐⡀⠂⠌⠐⣈⠠⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⠐⠠⢀⠁⢂⠡⠐⡀⢁⠂⢁⠂⠄⠂⡁⠂⠄⡈⠐⠠⢁⠂⠌⢀⠂⠄
+⢂⠐⠠⠁⠂⠄⡁⠄⡁⠂⠄⡈⠐⠠⢈⠐⠠⢈⠀⠂⠄⠡⠈⠄⠠⢰⣿⣿⣿⣿⣿⣿⣿⠟⣿⣿⣿⣿⣿⣿⣿⡇⠐⡀⠌⡀⠐⠠⠐⠠⢈⠀⠂⠌⡐⢀⠁⠂⠄⡁⠂⠄⠂⠌⡀⠂⠄
+⠂⠌⡀⠡⢈⠐⠠⠐⡀⢁⠂⠄⡁⠂⠄⡈⠐⠠⢈⠐⡈⠄⡁⠈⢄⣿⣿⣿⣿⣿⣿⠋⠋⡈⠈⠻⣿⣿⣿⣿⣿⣿⡀⠄⡐⠀⡁⢂⠁⠂⠄⡈⠐⠠⠐⡀⠌⡐⠠⢀⠡⢈⠐⠠⢀⠁⠂
+⡁⠂⠄⢁⠂⠌⠠⠁⠄⢂⠈⠄⠠⢁⠂⠄⡁⠂⠄⠂⠄⠂⠄⠃⣼⣿⣿⣿⡿⡋⠊⡀⠂⠄⠡⢀⠈⠻⢿⣿⣿⣿⣧⠀⠄⠡⠐⠠⢈⠐⠠⢀⠁⢂⠡⢀⠐⡀⠡⢀⠂⠄⡈⠐⠠⠈⠄
+⠠⠁⠌⢀⠂⠌⠐⡈⠄⠂⡈⠄⡁⠂⡐⠠⢀⠡⢈⠐⠈⡐⠈⣰⣿⣿⣿⡫⠉⡀⠂⠄⠡⢈⠐⠠⠈⠄⡈⠻⣿⣿⣿⡆⠈⠄⡈⠐⠠⢈⠐⠠⠈⠄⠂⠄⠂⠄⡁⢂⠐⠠⢀⠁⢂⠁⠂
+⠄⠡⢈⠀⠂⠌⠐⡀⠂⡁⠐⠠⢀⠡⠐⢀⠂⡐⠠⢈⠐⠠⢁⣿⡿⠿⠂⠠⠐⢀⠡⠈⡐⠠⠈⠄⢁⠂⠐⡀⠈⠻⣿⣿⡀⠂⠄⢁⠂⠄⡈⠄⢁⠂⠡⠈⡐⠠⠐⠠⠈⡐⠠⠈⠄⡈⠄
+⣈⡐⠠⠈⡐⠈⠄⠠⠁⠄⡁⠂⠄⠂⠁⠄⠂⠄⠁⢂⠈⠄⣼⡿⠋⠀⠄⡁⠌⢀⠂⠁⠄⠂⡁⠌⠀⠌⠐⠠⢁⡐⢈⣻⢧⠈⡐⠠⠈⠐⡀⠌⢀⠂⢁⠂⠄⠁⢂⠁⠂⠄⠁⠌⠐⢀⠂
+
+|}).
+
+init :-
+    cross(Cross),
+    format(Cross),
+    init_api_key,
+    set_prolog_flag(trace_lp, false).
+
+
+
 
 
 
