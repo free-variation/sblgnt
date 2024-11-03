@@ -16,25 +16,10 @@ init_api_key:-
 lp_api_version('2023-06-01').
 
 
-extract_model_ids(json(Objects), ModelIDs) :-
-    member(data = Models, Objects),
-    findall(ID, (member(json(ModelSpecs), Models), member(id = ID, ModelSpecs)), ModelIDs).
-
-list_models(Models):-
-    current_prolog_flag(lp_key, Key),
-    
-    lp_base_url(BaseURL),
-    format(atom(URL), '~w/v1/models', BaseURL),
-    http_get(URL, Models, [authorization(bearer(Key)), application/json]).
-
 create_message(Role, Content, Message) :-
     atom_string(Role, RoleString),
     atom_string(Content, ContentString),
     Message = json([role = RoleString, content = ContentString]).
-
-
-chat_with_lp(Messages, Response) :-
-    chat_with_lp('gpt-4', Messages, [temperature = 0], 3, false, Response).
 
 chat_with_lp(Model, Messages, Options, Attempts, Trace, Response) :-
     Attempts > 0,
@@ -104,11 +89,6 @@ response_usage(json(Response), InputTokens, OutputTokens) :-
 response_total_tokens(Response, Total) :-
     response_usage(Response, Input, Output),
     Total is Input + Output.
-
-
-run_CoT(Prompts, Messages, Responses) :-
-    current_prolog_flag(trace_lp, Trace),
-    run_CoT('gpt-4', Prompts, [temperature = 0], Trace, Messages, Responses).
 
 run_CoT(Model, Prompts, Messages, Responses) :-
     current_prolog_flag(trace_lp, Trace),

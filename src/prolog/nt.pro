@@ -6,33 +6,33 @@
     'src/prolog/lp_utils.pro'
     ].
 
-book_name(1, matthew, matthew).
-book_name(2, mark, mark).
-book_name(3, luke, luke).
-book_name(4, john, john).
-book_name(5, acts, luke).
-book_name(6, romans, paul).
-book_name(7, i_corinthians, paul).
-book_name(8, ii_corintians, paul).
-book_name(9, galatians, paul).
-book_name(10, ephesians, paul).
-book_name(11, philippians, paul).
-book_name(12, colossians, paul).
-book_name(13, i_thessalonians, paul).
-book_name(14, ii_thessalonians, paul).
-book_name(15, i_timothy, paul).
-book_name(16, ii_timothy, paul).
-book_name(17, titus, paul).
-book_name(18, philemon, paul).
-book_name(19, hebrews, paul).
-book_name(20, james, james).
-book_name(21, i_peter, peter).
-book_name(22, ii_peter, peter).
-book_name(23, i_john, john2).
-book_name(24, ii_john, john3).
-book_name(25, iii_john, john3).
-book_name(26, jude, jude).
-book_name(27, revelation, john4).
+book_name(1, matthew, matthew, 'Matthew', 'Matt.').
+book_name(2, mark, mark, 'Mark', 'Mark').
+book_name(3, luke, luke, 'Luke', 'Luke').
+book_name(4, john, john, 'John', 'John').
+book_name(5, acts, luke, 'Acts', 'Acts').
+book_name(6, romans, paul, 'Romans', 'Rom.').
+book_name(7, i_corinthians, paul, '1 Corinthians', '1 Cor.').
+book_name(8, ii_corintians, paul, '2 Corinthians', '2 Cor.').
+book_name(9, galatians, paul, 'Galatians', 'Gal.').
+book_name(10, ephesians, paul, 'Ephesians', 'Eph.').
+book_name(11, philippians, paul, 'Philippians', 'Phil.').
+book_name(12, colossians, paul, 'Colossians', 'Col.').
+book_name(13, i_thessalonians, paul, '1 Thessalonians', '1 Thess.').
+book_name(14, ii_thessalonians, paul, '2 Thessalonians', '2 Thess.').
+book_name(15, i_timothy, paul, '1 Timothy', '1 Tim.').
+book_name(16, ii_timothy, paul, '2 Timothy', '2 Tim.').
+book_name(17, titus, paul, 'Titus', 'Titus').
+book_name(18, philemon, paul, 'Philemon', 'Philem.').
+book_name(19, hebrews, paul, 'Hebrews', 'Heb.').
+book_name(20, james, james, 'James', 'Jas.').
+book_name(21, i_peter, peter, '1 Peter', '1 Pet.').
+book_name(22, ii_peter, peter, '2 Peter', '2 Pet.').
+book_name(23, i_john, john2, '1 John', '1 John').
+book_name(24, ii_john, john3, '2 John', '2 John').
+book_name(25, iii_john, john3, '3 John', '3 John').
+book_name(26, jude, jude, 'Jude', 'Jude').
+book_name(27, revelation, john4, 'Revelation', 'Rev.').
 
 book_chapter_verse(X, Book, Chapter, Verse) :-
     sub_atom(X, 0, 2, _, BookCode),
@@ -40,25 +40,23 @@ book_chapter_verse(X, Book, Chapter, Verse) :-
     sub_atom(X, 4, 2, _, VerseCode),
 
     atom_number(BookCode, BookNumber),
-    book_name(BookNumber, BookName, Author),
+    book_name(BookNumber, Book, _Author, _FullName, _Abbrev),
     atom_number(ChapterCode, Chapter),
-    atom_number(VerseCode, Verse),
+    atom_number(VerseCode, Verse).
 
-    Book = book(BookNumber, BookName, Author).
-
-pos('A-', adjective).  
-pos('C-', conjunction).  
-pos('D-', adverb).  
-pos('I-', interjection).  
-pos('N-', noun).  
-pos('P-', preposition).  
-pos('RA', definite_article).  
-pos('RD', demonstrative_pronoun).  
-pos('RI', interrogative_indefinite_pronoun).  
-pos('RP', personal_pronoun).  
-pos('RR', relative_pronoun).  
-pos('V-', verb).  
-pos('X-', particle).  
+pos('A-', adjective, a).  
+pos('C-', conjunction, '&').  
+pos('D-', adverb, adv).  
+pos('I-', interjection, int).  
+pos('N-', noun, n).  
+pos('P-', preposition, p).  
+pos('RA', definite_article, def).  
+pos('RD', demonstrative_pronoun, dem).  
+pos('RI', interrogative_indefinite_pronoun, indef).  
+pos('RP', personal_pronoun, pp).  
+pos('RR', relative_pronoun, rp).  
+pos('V-', verb, v).  
+pos('X-', particle, part).  
 
 person('-', []).
 person('1', first).
@@ -114,7 +112,7 @@ parse_word(Word, ParsedWord) :-
     book_chapter_verse(X1, Book, Chapter, Verse),
 
     nth1(2, Xs, X2),
-    pos(X2, POS),
+    pos(X2, POS, _),
 
     nth1(3, Xs, X3),
     sub_atom(X3, 0, 1, _, PersonCode),
@@ -170,7 +168,7 @@ parse_word(Word, ParsedWord) :-
 load_book(Filename, ParsedWords) :-
     read_file_to_string(Filename, BookString, []),
     atomics_to_string(AllWords, '\n', BookString),
-    exclude({}/[Line]>>(Line = ''), AllWords, Words),
+    exclude({}/[Line]>>(Line = ''), AllWords, Words),  
     maplist(parse_word, Words, ParsedWords).
 
 build_word(FullWord, WordNumber, Word) :-
@@ -205,8 +203,9 @@ build_book(Words, Book) :-
     maplist(build_chapter(Words), ChapterNumbers, Chapters),
     
     Words = [Word1 | _],
-    arg(2, Word1, book(BookNumber, BookName, Author)),
-    Book = book(BookNumber, BookName, Author, Chapters).
+    arg(2, Word1, BookName),
+    book_name(_BookNumber, BookName, Author, FullName, Abbrev),
+    Book = book(BookName, Author, FullName, Abbrev, Chapters).
 
 build_nt(NT) :-
     expand_file_name('./*.txt', BookFiles),
@@ -215,129 +214,185 @@ build_nt(NT) :-
     flatten(BookWords, AllWords),
     NT = nt(Books, AllWords).
 
-assert_verse(BookNumber, ChapterNumber, verse(VerseNumber, Words)) :-
-    assertz(verse(BookNumber, ChapterNumber, VerseNumber, Words)).
+assert_verse(BookName, ChapterNumber, verse(VerseNumber, Words)) :-
+    maplist({}/[Word, WordText]>>(arg(7, Word, WordText)), Words, Texts),
+    atomics_to_string(Texts, ' ', VerseText),
+    assertz(verse(BookName, ChapterNumber, VerseNumber, Words, VerseText)).
 
-assert_chapter(BookNumber, chapter(ChapterNumber, Verses)) :-
-    maplist(assert_verse(BookNumber, ChapterNumber), Verses),
+assert_chapter(BookName, chapter(ChapterNumber, Verses)) :-
+    maplist(assert_verse(BookName, ChapterNumber), Verses),
     assertz(chapter(ChapterNumber, Verses)).
 
-assert_book(book(BookNumber, BookName, Author, Chapters)) :-
-    maplist(assert_chapter(BookNumber), Chapters),
-    assertz(book(BookNumber, BookName, Author, Chapters)).
+assert_book(book(BookName, Author, FullName, Abbrev, Chapters)) :-
+    maplist(assert_chapter(BookName), Chapters),
+    assertz(book(BookName, Author, FullName, Abbrev, Chapters)).
 
 assert_nt(nt(Books, Words)) :-
     maplist(assertz, Words),
     maplist(assert_book, Books).
 
-format_verse(BookNumber, ChapterNumber, VerseNumber, FormattedVerse) :-
-    verse(BookNumber, ChapterNumber, VerseNumber, Words),
-    maplist({}/[Word, Text]>>(arg(2, Word, Text)), Words, Texts),
+format_word(TargetLemma, Word, FormattedWord) :-
+    arg(2, Word, Text),
+    arg(3, Word, POS),
+    arg(9, Word, Lemma),
+    pos(_, POS, ShortPOS),
+
+    (   Lemma = TargetLemma
+    ->  format(atom(FormattedWord), '**~w**/~w', [Text, ShortPOS])
+    ;   format(atom(FormattedWord), '~w/~w', [Text, ShortPOS])
+    ).
+
+other_verse(BookName, ChapterNumber, VerseNumber, Displacement, OtherVerseNumber) :-
+    OtherVerseNumber is VerseNumber + Displacement,
+    verse(BookName, ChapterNumber, OtherVerseNumber, _Words, _VerseText).
+
+verse_context(BookName, ChapterNumber, VerseNumber, Context) :-
+    (   other_verse(BookName, ChapterNumber, VerseNumber, -1, VerseNumber1)
+    ->  PreviousVerse = VerseNumber1
+    ;   PreviousVerse = none
+    ),
+    (   other_verse(BookName, ChapterNumber, VerseNumber, 1, VerseNumber2)
+    ->  FollowingVerse = VerseNumber2
+    ;   FollowingVerse = none
+    ),
+
+    Context = context(BookName, ChapterNumber, PreviousVerse, FollowingVerse).
+
+
+format_verse(BookName, ChapterNumber, VerseNumber, TargetLemma, FormattedVerse) :-
+    verse(BookName, ChapterNumber, VerseNumber, Words, _VerseText),
+    maplist(format_word(TargetLemma), Words, Texts),
     atomics_to_string(Texts, ' ', FormattedVerse).
 
 find(UnaccentedLemma, Hits, FormattedVerses) :-
     findall(
-        hit(Text, BookNumber, Chapter, Verse, POS, Features, Lemma),
-        word(_, book(BookNumber, _, _), Chapter, Verse, POS, Features, Text, _, _, Lemma, _, UnaccentedLemma),
+        hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma),
+        word(_, BookName, ChapterNumber, VerseNumber, POS, Features, Text, _, _, Lemma, _, UnaccentedLemma),
         Hits),
-    maplist({}/[hit(_, BookNumber, Chapter, Verse, _, _, _), FormattedVerse]>>
-        (format_verse(BookNumber, Chapter, Verse, FormattedVerse)), Hits, FormattedVerses).
+    maplist({UnaccentedLemma}/[hit(_, BookName, ChapterNumber, VerseNumber, _, _, _), FormattedVerse]>>
+        (format_verse(BookName, ChapterNumber, VerseNumber, UnaccentedLemma, FormattedVerse)), Hits, FormattedVerses).
 
-parse_verse_xbar(Model, BookNumber, ChapterNumber, VerseNumber, ParsedVerse) :-
-    format_verse(BookNumber, ChapterNumber, VerseNumber, Verse),
+expand_hit(hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma), FormattedVerse, FormattedHit) :-
+    book(BookName, _Author, _FullName, Abbrev, _Chapters),
+    atomics_to_string(Features, ',', FeaturesString),
+    format(string(Citation), '~w ~w.~w', [Abbrev, ChapterNumber, VerseNumber]),
 
+    parse_verse_xbar(BookName, ChapterNumber, VerseNumber, ParsedVerse),
+
+    asv(BookName, ChapterNumber, VerseNumber, AsvVerse),
+    kjv(BookName, ChapterNumber, VerseNumber, KjvVerse),
+    nasb(BookName, ChapterNumber, VerseNumber, NasbVerse),
+
+    FormattedHit = [
+        Citation, Text, Lemma, POS, FeaturesString, 
+        FormattedVerse, ParsedVerse,
+        AsvVerse, KjvVerse, NasbVerse
+    ].
+
+markdown_hit(
+    [Citation, Text, Lemma, POS, FeaturesString, 
+    FormattedVerse, ParsedVerse,
+    AsvVerse, KjvVerse, NasbVerse],
+    MarkdownHit) :-
+
+     MarkdownHit = {|string(
+        Citation, Text, Lemma, POS, FeaturesString, 
+        FormattedVerse, ParsedVerse,
+        AsvVerse, KjvVerse, NasbVerse) ||
+
+### {Citation}
+
+| Word | Lemma | POS | Features |
+| --- | --- | --- | --- |
+| {Text} | {Lemma} | {POS} | {FeaturesString} |
+
+{FormattedVerse}
+
+```
+{ParsedVerse}
+```
+
+| ASV |
+| --- |
+| {AsvVerse} |
+
+| KJV |
+| --- |
+| {KjvVerse} |
+
+| NASB | 
+| --- |
+| {NasbVerse} |
+    |}.
+
+
+find_results_to_markdown(Hits, Verses, MarkdownFile) :-
+    concurrent_maplist(expand_hit, Hits, Verses, HitLists),
+    maplist(markdown_hit, HitLists, MarkdownHits),
+   
+    tell(MarkdownFile),
+    maplist(format, MarkdownHits),
+    told.
+
+parse_verse_xbar(BookName, ChapterNumber, VerseNumber, ParsedVerse) :-
+    print([BookName, ChapterNumber, VerseNumber]),nl,
+    verse(BookName, ChapterNumber, VerseNumber, _Words, Verse),
     Prompt = {|string(Verse) ||
 
-Given a Koine Greek sentence, generate its complete syntactic representation in Prolog following these specifications:
+Given a Koine Greek sentence, generate its complete syntactic representation in labeled bracketing notation following these specifications:
 
-1. Represent the overall sentence structure as s(coord([...])) when coordination exists, or as s(...) for single clauses.
+1. Represent the overall sentence structure as [S ...] when no coordination exists, or [S-COORD [...]] for coordinated sentences.
 
 2. For each clause, show:
-   - Full functional projection: comp/1 for complementizers
-   - Full extended verbal projection: vp/2 or vp/3 including arguments
-   - All determiner phrases as dp(det(D)) for pronouns or dp(det(D), n(N)) for full DPs
-   - Preposition phrases as pp(p(P), dp(...))
-   - Negation when present as neg(Word)
+   - Full functional projection: [COMP complementizer]
+   - Full extended verbal projection: [VP verb arguments]
+   - All determiner phrases as [DP [D det] [N noun]] for full DPs or [DP [D pronoun]] for pronouns
+   - Preposition phrases as [PP [P prep] [DP ...]]
+   - Negation when present as [NEG word]
    
 3. For coordination, use:
-   - coord([...]) to list all coordinated elements
-   - Include the coordinator in the structure
+   - [COORD [...]] to list all coordinated elements
+   - Include coordinators in the structure as [CONJ word]
 
 4. Maintain strict binary branching by:
-   - Using only binary predicates or unary predicates 
-   - Never allowing more than two arguments per phrase
-   - Using embedded structures rather than flat lists
+   - Using nested brackets appropriately
+   - Never listing more than two main constituents at the same level
+   - Showing hierarchical structure through proper nesting
 
-5. Include all lexical entries in the form:
-```prolog
-lex(Word, Category).
-```
-where Category must be one of:
-- conj (coordinators)
-- comp (complementizers)
-- v (verbs)
-- n (nouns)
-- det (determiners/articles/pronouns)
-- p (prepositions)
-- adv (adverbs)
-- neg (negation)
-
-6. The complete output must contain:
+5. The complete output must contain:
    - The full sentence structure showing all syntactic relationships
    - Every word from the input sentence in its proper syntactic position
-   - A lexical entry for every word
 
-7. Example format:
-```prolog
-% Main sentence structure
-s(coord([
-    s(subord(comp(Word1), adv(Word2), 
-        s(comp(Word3),
-          vp(v(Word4), dp(det(Word5))),
-          vp(v(Word6), dp(det(Word7), n(Word8))))
-    )),
-    s(vp(v(Word9))),
-    s(vp(v(Word10), dp(det(Word11), n(Word12)))),
-    s(vp(v(Word13))),
-    % ... continue for all clauses
-])).
+6. Example format:
+[S [COMP that] [VP [V said] [DP [D the] [N man]]]]
 
-% Lexical entries
-lex(Word1, Category1, MorphosyntacticFeatures1).
-lex(Word2, Category2, MorphosyntacticFeatures2).
-lex(Word3, Category3, MorphosyntacticFeatures3).
-% ... continue for all words
-```
-
-In identifying the morphosyntactic features of verbs, specify: voice, mood, aspect, tense, person, number.
-
-8. Specific structural requirements:
+7. Specific structural requirements:
    - All complement phrases must be on the right
    - All specifiers must be on the left
-   - Movement traces must be shown with t(X) where relevant
-   - Adjuncts must attach at the appropriate phrasal level
-   - All pronouns are treated as determiners heading DPs
+   - Movement traces shown as [t]
+   - Adjuncts attached at the appropriate phrasal level
+   - All pronouns treated as determiners heading DPs
 
-9. When processing any input:
+8. When processing any input:
    a. First identify all clausal boundaries
    b. Map the full functional sequence for each clause
    c. Position all arguments in their proper structural positions
    d. Add functional projections as needed
    e. Show coordination structure when present
-   f. Include all lexical items
 
-10. The output must be valid Prolog syntax that could be loaded into a Prolog interpreter.
-
-Apply this format consistently to any input Koine Greek sentence, maintaining the same level of detail and structural representation shown in the format above.
+Return only the bracketed notation representing the parse with appropriate indentation and line breaks for readability.
+No extra fluff, no introductions, no discussion, no conclusions.  Just the tree.
 
 Here is the sentence:
 {Verse}
     
     |},
 
-    run_CoT(Model, [Prompt], _, Responses),
+    run_CoT('claude-3-5-sonnet-20241022', [Prompt], _, Responses),
     last(Responses, Response),
-    response_content(Response, ParsedVerse).
+    response_content(Response, ParsedVerseString),
+    format(ParsedVerseString),nl,
+    ParsedVerse = ParsedVerseString.
 
 system_message('You are an expert in Koine Greek and in analyzing and translating the New Testament').
 
@@ -380,15 +435,44 @@ cross({|string||
 
 |}).
 
+read_bible(asv) :-
+    csv_read_file('bibles/asv.tsv', [ _ | Verses], [functor(verse)]),
+    include({}/[verse(_, _, BookNumber, _, _, _)]>>(BookNumber > 39), Verses, NTVerses),
+    maplist({}/[verse(_, _, FullBookNumber, ChapterNumber, VerseNumber, Verse)]>>(
+        BookNumber is FullBookNumber - 39, 
+        book_name(BookNumber, BookName, _, _, _), 
+        assertz(asv(BookName, ChapterNumber, VerseNumber, Verse))),
+    NTVerses).
+
+read_bible(kjv) :-
+    csv_read_file('bibles/kjv.tsv', [ _ | Verses], [functor(verse)]),
+    include({}/[verse(_, _, BookNumber, _, _, _)]>>(BookNumber > 39), Verses, NTVerses),
+    maplist({}/[verse(_, _, FullBookNumber, ChapterNumber, VerseNumber, Verse)]>>(
+        BookNumber is FullBookNumber - 39, 
+        book_name(BookNumber, BookName, _, _, _), 
+        assertz(kjv(BookName, ChapterNumber, VerseNumber, Verse))),
+    NTVerses).
+
+read_bible(nasb) :-
+    read_file_to_string('bibles/nasb.tsv', Book, []),
+    atomics_to_string(VerseStrings, '\n', Book),
+    VerseStrings = [ _Header | Rows],
+    maplist({}/[Row, Columns]>>(atomics_to_string(Columns, '\t', Row)), Rows, VerseRows),
+    maplist(nasb_row_to_verse, VerseRows, NASBVerses),
+    maplist(assertz, NASBVerses).
+
+nasb_row_to_verse([FullName, Chapter, Verse, VerseText], NASBVerse) :-
+    book_name(_, BookName, _, FullName, _),
+    atom_number(Chapter, ChapterNumber),
+    atom_number(Verse, VerseNumber),
+    NASBVerse = nasb(BookName, ChapterNumber, VerseNumber, VerseText).
+
 init :-
     cross(Cross),
     format(Cross),
     init_api_key,
-    set_prolog_flag(trace_lp, false).
-
-
-
-
-
-
-
+    set_prolog_flag(trace_lp, false),
+    build_nt(NT),
+    assert_nt(NT), 
+    maplist(read_bible, [asv, kjv, nasb]),
+    !.
