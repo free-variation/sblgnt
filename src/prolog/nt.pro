@@ -247,6 +247,8 @@ other_verse(BookName, ChapterNumber, VerseNumber, Displacement, OtherVerseNumber
     verse(BookName, ChapterNumber, OtherVerseNumber, _Words, _VerseText).
 
 verse_context(BookName, ChapterNumber, VerseNumber, Context) :-
+    verse(BookName, ChapterNumber, VerseNumber, _, _), !,
+
     (   other_verse(BookName, ChapterNumber, VerseNumber, -1, VerseNumber1)
     ->  PreviousVerse = VerseNumber1
     ;   PreviousVerse = none
@@ -256,7 +258,7 @@ verse_context(BookName, ChapterNumber, VerseNumber, Context) :-
     ;   FollowingVerse = none
     ),
 
-    Context = context(BookName, ChapterNumber, PreviousVerse, FollowingVerse).
+    Context = context(BookName, ChapterNumber, VerseNumber, PreviousVerse, FollowingVerse).
 
 
 format_verse(BookName, ChapterNumber, VerseNumber, TargetLemma, FormattedVerse) :-
@@ -272,7 +274,7 @@ find(UnaccentedLemma, Hits, FormattedVerses) :-
     maplist({UnaccentedLemma}/[hit(_, BookName, ChapterNumber, VerseNumber, _, _, _), FormattedVerse]>>
         (format_verse(BookName, ChapterNumber, VerseNumber, UnaccentedLemma, FormattedVerse)), Hits, FormattedVerses).
 
-expand_hit(hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma), FormattedVerse, FormattedHit) :-
+expand_hit(hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma), FormattedVerse, ExpandedHit) :-
     book(BookName, _Author, _FullName, Abbrev, _Chapters),
     atomics_to_string(Features, ',', FeaturesString),
     format(string(Citation), '~w ~w.~w', [Abbrev, ChapterNumber, VerseNumber]),
@@ -283,16 +285,19 @@ expand_hit(hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma)
     kjv(BookName, ChapterNumber, VerseNumber, KjvVerse),
     nasb(BookName, ChapterNumber, VerseNumber, NasbVerse),
 
-    FormattedHit = [
+    verse_context(BookName, ChapterNumber, VerseNumber, Context),
+
+    ExpandedHit = [
         Citation, Text, Lemma, POS, FeaturesString, 
         FormattedVerse, ParsedVerse,
-        AsvVerse, KjvVerse, NasbVerse
+        AsvVerse, KjvVerse, NasbVerse,
+        Context
     ].
 
 markdown_hit(
     [Citation, Text, Lemma, POS, FeaturesString, 
     FormattedVerse, ParsedVerse,
-    AsvVerse, KjvVerse, NasbVerse],
+    AsvVerse, KjvVerse, NasbVerse, _Context],
     MarkdownHit) :-
 
      MarkdownHit = {|string(
