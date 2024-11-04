@@ -440,44 +440,40 @@ cross({|string||
 
 |}).
 
-read_bible(asv) :-
-    csv_read_file('bibles/asv.tsv', [ _ | Verses], [functor(verse)]),
-    include({}/[verse(_, _, BookNumber, _, _, _)]>>(BookNumber > 39), Verses, NTVerses),
-    maplist({}/[verse(_, _, FullBookNumber, ChapterNumber, VerseNumber, Verse)]>>(
-        BookNumber is FullBookNumber - 39, 
-        book_name(BookNumber, BookName, _, _, _), 
-        assertz(asv(BookName, ChapterNumber, VerseNumber, Verse))),
-    NTVerses).
-
-read_bible(kjv) :-
-    csv_read_file('bibles/kjv.tsv', [ _ | Verses], [functor(verse)]),
-    include({}/[verse(_, _, BookNumber, _, _, _)]>>(BookNumber > 39), Verses, NTVerses),
-    maplist({}/[verse(_, _, FullBookNumber, ChapterNumber, VerseNumber, Verse)]>>(
-        BookNumber is FullBookNumber - 39, 
-        book_name(BookNumber, BookName, _, _, _), 
-        assertz(kjv(BookName, ChapterNumber, VerseNumber, Verse))),
-    NTVerses).
-
-read_bible(nasb) :-
-    read_file_to_string('bibles/nasb.tsv', Book, []),
-    atomics_to_string(VerseStrings, '\n', Book),
-    VerseStrings = [ _Header | Rows],
-    maplist({}/[Row, Columns]>>(atomics_to_string(Columns, '\t', Row)), Rows, VerseRows),
-    maplist(nasb_row_to_verse, VerseRows, NASBVerses),
-    maplist(assertz, NASBVerses).
-
-nasb_row_to_verse([FullName, Chapter, Verse, VerseText], NASBVerse) :-
-    book_name(_, BookName, _, FullName, _),
+line_to_verse(Line, verse(VerseIDNumber, BookName, BookNumber, ChapterNumber, VerseNumber, Text)) :-
+    atomics_to_string(Row, '\t', Line),
+    Row = [VerseID, BookName, Book, Chapter, Verse, Text],
+    atom_number(VerseID, VerseIDNumber),
+    atom_number(Book, BookNumber),
     atom_number(Chapter, ChapterNumber),
-    atom_number(Verse, VerseNumber),
-    NASBVerse = nasb(BookName, ChapterNumber, VerseNumber, VerseText).
+    atom_number(Verse, VerseNumber).
+
+load_translation(TSVFile, Verses) :-
+    read_file_to_string(TSVFile, Text, []),
+    atomics_to_string(AllLines, '\n', Text),
+    AllLines = [_Header | Lines],
+    maplist(line_to_verse, Lines, Verses).
+
+read_translation(Version) :-
+    print(Version), nl,
+    format(atom(TSVFile), 'bibles/~w.tsv', Version),
+    load_translation(TSVFile, Verses),
+    include({}/[verse(_, _, BookNumber, _, _, _)]>>(BookNumber > 39), Verses, NTVerses),
+    maplist({Version}/[verse(_, _, FullBookNumber, ChapterNumber, VerseNumber, Verse)]>>(
+        BookNumber is FullBookNumber - 39, 
+        book_name(BookNumber, BookName, _, _, _), 
+        Entry =.. [Version, BookName, ChapterNumber, VerseNumber, Verse],
+        assertz(Entry)),
+    NTVerses).
 
 init :-
     cross(Cross),
     format(Cross),
+
     init_api_key,
     set_prolog_flag(trace_lp, false),
+    
     build_nt(NT),
     assert_nt(NT), 
-    maplist(read_bible, [asv, kjv, nasb]),
+    maplist(read_translation, [asv, kjv, nasb, amp, niv, nkjv, esv]),
     !.
