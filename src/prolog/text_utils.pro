@@ -80,5 +80,10 @@ row_to_string(Row, RowString) :-
 
 zip_lists(L1, L2, ZippedList) :-
     maplist({}/[E1, E2, E3]>>(E3 = [E1, E2]), L1, L2, ZippedList).
+
+sample(N, List, Sample) :-
+    permutation(List, PermutedList),
+    length(Sample, N),
+    append(Sample, _, PermutedList).
     
 

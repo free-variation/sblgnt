@@ -231,16 +231,21 @@ assert_nt(nt(Books, Words)) :-
     maplist(assertz, Words),
     maplist(assert_book, Books).
 
-format_word(TargetLemma, Word, FormattedWord) :-
+format_word(TargetText, Word, FormattedWord) :-
     arg(2, Word, Text),
     arg(3, Word, POS),
-    arg(9, Word, Lemma),
     pos(_, POS, ShortPOS),
 
-    (   Lemma = TargetLemma
+    (   Text = TargetText
     ->  format(atom(FormattedWord), '**~w**/~w', [Text, ShortPOS])
     ;   format(atom(FormattedWord), '~w/~w', [Text, ShortPOS])
     ).
+
+
+format_verse(BookName, ChapterNumber, VerseNumber, TargetText, FormattedVerse) :-
+    verse(BookName, ChapterNumber, VerseNumber, Words, _VerseText),
+    maplist(format_word(TargetText), Words, Texts),
+    atomics_to_string(Texts, ' ', FormattedVerse).
 
 other_verse(BookName, ChapterNumber, VerseNumber, Displacement, OtherVerseNumber) :-
     OtherVerseNumber is VerseNumber + Displacement,
@@ -260,24 +265,18 @@ verse_context(BookName, ChapterNumber, VerseNumber, Context) :-
 
     Context = context(BookName, ChapterNumber, VerseNumber, PreviousVerse, FollowingVerse).
 
-
-format_verse(BookName, ChapterNumber, VerseNumber, TargetLemma, FormattedVerse) :-
-    verse(BookName, ChapterNumber, VerseNumber, Words, _VerseText),
-    maplist(format_word(TargetLemma), Words, Texts),
-    atomics_to_string(Texts, ' ', FormattedVerse).
-
-find(UnaccentedLemma, Hits, FormattedVerses) :-
+find(UnaccentedLemma, Hits) :-
     findall(
         hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma),
         word(_, BookName, ChapterNumber, VerseNumber, POS, Features, Text, _, _, Lemma, _, UnaccentedLemma),
-        Hits),
-    maplist({UnaccentedLemma}/[hit(_, BookName, ChapterNumber, VerseNumber, _, _, _), FormattedVerse]>>
-        (format_verse(BookName, ChapterNumber, VerseNumber, UnaccentedLemma, FormattedVerse)), Hits, FormattedVerses).
+        Hits).
 
-expand_hit(hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma), FormattedVerse, ExpandedHit) :-
+expand_hit(hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma), ExpandedHit) :-
     book(BookName, _Author, _FullName, Abbrev, _Chapters),
     atomics_to_string(Features, ',', FeaturesString),
     format(string(Citation), '~w ~w.~w', [Abbrev, ChapterNumber, VerseNumber]),
+
+    format_verse(BookName, ChapterNumber, VerseNumber, Text, FormattedVerse),
 
     parse_verse_xbar(BookName, ChapterNumber, VerseNumber, ParsedVerse),
 
@@ -328,8 +327,8 @@ markdown_hit(
     |}.
 
 
-find_results_to_markdown(Hits, Verses, MarkdownFile) :-
-    concurrent_maplist(expand_hit, Hits, Verses, HitLists),
+find_results_to_markdown(Hits, MarkdownFile) :-
+    concurrent_maplist(expand_hit, Hits, HitLists),
     maplist(markdown_hit, HitLists, MarkdownHits),
    
     tell(MarkdownFile),
@@ -514,7 +513,12 @@ init :-
     !.
 
 study(Word) :-
-    find(Word, Hits, Verses),
+    find(Word, Hits),
+    length(Hits, NumHits),
+    (   NumHits > 20
+    ->  sample(20, Hits, UseHits)
+    ;   UseHits = Hits
+    ),
 
     format(atom(MarkdownFile), 'analyses/~w.md', Word),
-    find_results_to_markdown(Hits, Verses, MarkdownFile).
+    find_results_to_markdown(UseHits, MarkdownFile).
