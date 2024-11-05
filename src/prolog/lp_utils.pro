@@ -15,7 +15,6 @@ init_api_key:-
 
 lp_api_version('2023-06-01').
 
-
 create_message(Role, Content, Message) :-
     atom_string(Role, RoleString),
     atom_string(Content, ContentString),
@@ -89,6 +88,13 @@ response_usage(json(Response), InputTokens, OutputTokens) :-
 response_total_tokens(Response, Total) :-
     response_usage(Response, Input, Output),
     Total is Input + Output.
+
+default_model('claude-3-5-sonnet-20241022').
+
+run_CoT(Prompts, Messages, Responses) :-
+    default_model(Model),
+    current_prolog_flag(trace_lp, Trace),
+    run_CoT(Model, Prompts, [temperature = 0], Trace, Messages, Responses).
 
 run_CoT(Model, Prompts, Messages, Responses) :-
     current_prolog_flag(trace_lp, Trace),

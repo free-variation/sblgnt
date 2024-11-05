@@ -77,5 +77,8 @@ markdown_table(Header, Rows, Markdown) :-
 row_to_string(Row, RowString) :-
     atomic_list_concat(Row, " | ", RowData),
     atomic_list_concat(["| ", RowData, " |"], RowString).
+
+zip_lists(L1, L2, ZippedList) :-
+    maplist({}/[E1, E2, E3]>>(E3 = [E1, E2]), L1, L2, ZippedList).
     
 

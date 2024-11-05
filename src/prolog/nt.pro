@@ -208,7 +208,7 @@ build_book(Words, Book) :-
     Book = book(BookName, Author, FullName, Abbrev, Chapters).
 
 build_nt(NT) :-
-    expand_file_name('./*.txt', BookFiles),
+    expand_file_name('morphgnt/*.txt', BookFiles),
     maplist(load_book, BookFiles, BookWords),
     maplist(build_book, BookWords, Books),
     flatten(BookWords, AllWords),
@@ -281,29 +281,34 @@ expand_hit(hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma)
 
     parse_verse_xbar(BookName, ChapterNumber, VerseNumber, ParsedVerse),
 
-    asv(BookName, ChapterNumber, VerseNumber, AsvVerse),
-    kjv(BookName, ChapterNumber, VerseNumber, KjvVerse),
-    nasb(BookName, ChapterNumber, VerseNumber, NasbVerse),
+    translations(Versions),
+    maplist({BookName, ChapterNumber, VerseNumber}/[Version, TranslatedVerse]>>(
+        trans(Version, BookName, ChapterNumber, VerseNumber, TranslatedVerse)),
+        Versions, Translations),
+    find_translations(BookName, ChapterNumber, VerseNumber, Text, WordTranslations),
 
     verse_context(BookName, ChapterNumber, VerseNumber, Context),
 
     ExpandedHit = [
         Citation, Text, Lemma, POS, FeaturesString, 
         FormattedVerse, ParsedVerse,
-        AsvVerse, KjvVerse, NasbVerse,
-        Context
+        Translations, WordTranslations, Context
     ].
 
 markdown_hit(
     [Citation, Text, Lemma, POS, FeaturesString, 
     FormattedVerse, ParsedVerse,
-    AsvVerse, KjvVerse, NasbVerse, _Context],
+    Translations, WordTranslations, _Context],
     MarkdownHit) :-
+
+    translations(Versions),
+    zip_lists(Versions, Translations, TranslatedVerses),
+    markdown_table(['Version', 'Translation'], TranslatedVerses, TranslationsTable),
 
      MarkdownHit = {|string(
         Citation, Text, Lemma, POS, FeaturesString, 
         FormattedVerse, ParsedVerse,
-        AsvVerse, KjvVerse, NasbVerse) ||
+        TranslationsTable, WordTranslations) ||
 
 ### {Citation}
 
@@ -317,17 +322,9 @@ markdown_hit(
 {ParsedVerse}
 ```
 
-| ASV |
-| --- |
-| {AsvVerse} |
+{WordTranslations}
 
-| KJV |
-| --- |
-| {KjvVerse} |
-
-| NASB | 
-| --- |
-| {NasbVerse} |
+{TranslationsTable}
     |}.
 
 
@@ -340,7 +337,7 @@ find_results_to_markdown(Hits, Verses, MarkdownFile) :-
     told.
 
 parse_verse_xbar(BookName, ChapterNumber, VerseNumber, ParsedVerse) :-
-    print([BookName, ChapterNumber, VerseNumber]),nl,
+    %print([BookName, ChapterNumber, VerseNumber]),nl,
     verse(BookName, ChapterNumber, VerseNumber, _Words, Verse),
     Prompt = {|string(Verse) ||
 
@@ -393,10 +390,9 @@ Here is the sentence:
     
     |},
 
-    run_CoT('claude-3-5-sonnet-20241022', [Prompt], _, Responses),
+    run_CoT([Prompt], _, Responses),
     last(Responses, Response),
     response_content(Response, ParsedVerseString),
-    format(ParsedVerseString),nl,
     ParsedVerse = ParsedVerseString.
 
 system_message('You are an expert in Koine Greek and in analyzing and translating the New Testament').
@@ -463,8 +459,45 @@ read_translation(Version) :-
         BookNumber is FullBookNumber - 39, 
         book_name(BookNumber, BookName, _, _, _), 
         Entry =.. [Version, BookName, ChapterNumber, VerseNumber, Verse],
-        assertz(Entry)),
+        assertz(Entry),
+        assertz(trans(Version, BookName, ChapterNumber, VerseNumber, Verse))),
     NTVerses).
+
+translations([asv, kjv, nasb, amp, niv, nkjv, esv]).
+
+find_translations(Book, ChapterNumber, VerseNumber, Word, Translations) :-
+    verse(Book, ChapterNumber, VerseNumber, _Words, Verse),
+    
+    translations(Versions),
+    maplist({Book, ChapterNumber, VerseNumber}/[Version, Translation]>>(
+        trans(Version, Book, ChapterNumber, VerseNumber, Translation)), 
+        Versions, TranslatedVerses),
+    zip_lists(Versions, TranslatedVerses, TranslatedVerses1),
+    markdown_table(['Version', 'Translation'], TranslatedVerses1, TranslationsTable),
+
+    Prompt = {|string(Verse, Word, TranslationsTable) ||
+    
+    Identify how various translation versions of the Greek New Testament translate the word {Word} in this verse:
+    {Verse}
+
+    I will provide a table of translations, where the first column is a label for the version, and the second the translation of the verse.
+    For each version, Pick out the word or words that translate {Word}.
+
+    {TranslationsTable}
+
+    Return a markdown table with:
+    - Version
+    - English translation of {Word} in that version
+    - A comment on why that particular translation was chosen, and about the possible meanings of the Greek term that were NOT chosen, in the translation.
+
+    Return only the table.  No other fluff, no introductions, commentary, summaries, evaluations, etc.
+    
+    |},
+    
+    run_CoT([Prompt], _, Responses),
+    last(Responses, Response),
+    response_content(Response, Translations).
+
 
 init :-
     cross(Cross),
@@ -475,5 +508,13 @@ init :-
     
     build_nt(NT),
     assert_nt(NT), 
-    maplist(read_translation, [asv, kjv, nasb, amp, niv, nkjv, esv]),
+
+    translations(Versions), 
+    maplist(read_translation, Versions),
     !.
+
+study(Word) :-
+    find(Word, Hits, Verses),
+
+    format(atom(MarkdownFile), 'analyses/~w.md', Word),
+    find_results_to_markdown(Hits, Verses, MarkdownFile).
