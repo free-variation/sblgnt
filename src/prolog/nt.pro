@@ -302,7 +302,7 @@ markdown_hit(
 
     translations(Versions),
     zip_lists(Versions, Translations, TranslatedVerses),
-    markdown_table(['Version', 'Translation'], TranslatedVerses, TranslationsTable),
+    markdown_table(['Version', 'Translated Verse'], TranslatedVerses, TranslationsTable),
 
      MarkdownHit = {|string(
         Citation, Text, Lemma, POS, FeaturesString, 
@@ -311,11 +311,13 @@ markdown_hit(
 
 ### {Citation}
 
+_{FormattedVerse}_
+
 | Word | Lemma | POS | Features |
 | --- | --- | --- | --- |
 | {Text} | {Lemma} | {POS} | {FeaturesString} |
 
-{FormattedVerse}
+{TranslationsTable}
 
 ```
 {ParsedVerse}
@@ -323,7 +325,6 @@ markdown_hit(
 
 {WordTranslations}
 
-{TranslationsTable}
     |}.
 
 
@@ -363,6 +364,7 @@ Given a Koine Greek sentence, generate its complete syntactic representation in 
 5. The complete output must contain:
    - The full sentence structure showing all syntactic relationships
    - Every word from the input sentence in its proper syntactic position
+   - For each word, give its surface word form as it appears in the sentence, not its lemma.
 
 6. Example format:
 [S [COMP that] [VP [V said] [DP [D the] [N man]]]]
@@ -380,6 +382,7 @@ Given a Koine Greek sentence, generate its complete syntactic representation in 
    c. Position all arguments in their proper structural positions
    d. Add functional projections as needed
    e. Show coordination structure when present
+   f. If a verb lacks a prononimal subject, as Greek is a pro-drop language, add an explicit DP with the correct pronoun.
 
 Return only the bracketed notation representing the parse with appropriate indentation and line breaks for readability.
 No extra fluff, no introductions, no discussion, no conclusions.  Just the tree.
