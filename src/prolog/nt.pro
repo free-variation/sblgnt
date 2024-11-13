@@ -215,7 +215,7 @@ build_nt(NT) :-
     NT = nt(Books, AllWords).
 
 assert_verse(BookName, ChapterNumber, verse(VerseNumber, Words)) :-
-    maplist({}/[Word, WordText]>>(arg(7, Word, WordText)), Words, Texts),
+    maplist({}/[Word, WordText]>>(arg(2, Word, WordText)), Words, Texts),
     atomics_to_string(Texts, ' ', VerseText),
     assertz(verse(BookName, ChapterNumber, VerseNumber, Words, VerseText)).
 
@@ -229,7 +229,8 @@ assert_book(book(BookName, Author, FullName, Abbrev, Chapters)) :-
 
 assert_nt(nt(Books, Words)) :-
     maplist(assertz, Words),
-    maplist(assert_book, Books).
+    maplist(assert_book, Books),
+    assert(nt(Books, Words)).
 
 format_word(TargetText, Word, FormattedWord) :-
     arg(2, Word, Text),
@@ -313,26 +314,39 @@ markdown_hit(
 
 _{FormattedVerse}_
 
-| Word | Lemma | POS | Features |
-| --- | --- | --- | --- |
-| {Text} | {Lemma} | {POS} | {FeaturesString} |
-
 {TranslationsTable}
 
 ```
 {ParsedVerse}
 ```
+| Word | Lemma | POS | Features |
+| --- | --- | --- | --- |
+| {Text} | {Lemma} | {POS} | {FeaturesString} |
 
 {WordTranslations}
 
     |}.
 
+get_translated_words(Citation, Translations, [Citation | TranslatedWordsNoQuotes]) :-
+    markdown_table_to_lists(Translations, TranslationRows),
+    maplist(nth1(2), TranslationRows, TranslatedWords),
+    maplist(remove_quotes, TranslatedWords, TranslatedWordsNoQuotes).
+
 
 find_results_to_markdown(Hits, MarkdownFile) :-
     concurrent_maplist(expand_hit, Hits, HitLists),
+
+    maplist({}/[Hit, Citation]>>(nth1(1, Hit, Citation)), HitLists, Citations),
+    maplist({}/[Hit, WordTranslations]>>(nth1(9, Hit, WordTranslations)), HitLists, Translations),
+    maplist(get_translated_words, Citations, Translations, TranslatedWords),
+    translations(Versions),
+    maplist(upcase_atom, Versions, VERSIONS),
+    markdown_table(['Citation' | VERSIONS], TranslatedWords, TranslationsTable),
+
     maplist(markdown_hit, HitLists, MarkdownHits),
    
     tell(MarkdownFile),
+    format(TranslationsTable),nl,
     maplist(format, MarkdownHits),
     told.
 
@@ -466,6 +480,7 @@ read_translation(Version) :-
     NTVerses).
 
 translations([asv, kjv, nasb, amp, niv, nkjv, esv]).
+% translations([kjv, nasb, amp, nkjv, esv]).
 
 find_translations(Book, ChapterNumber, VerseNumber, Word, Translations) :-
     verse(Book, ChapterNumber, VerseNumber, _Words, Verse),
@@ -515,13 +530,32 @@ init :-
     maplist(read_translation, Versions),
     !.
 
-study(Word) :-
+% hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma)
+study(Word, MaxHits, Books, RequiredVerses) :-
     find(Word, Hits),
-    length(Hits, NumHits),
-    (   NumHits > 20
-    ->  sample(20, Hits, UseHits)
-    ;   UseHits = Hits
+    include({Books}/[Hit]>>(arg(2, Hit, BookName), member(BookName, Books)), Hits, BookHits),
+
+    length(BookHits, NumHits),
+    (   NumHits > MaxHits
+    ->  (   length(RequiredVerses, NumRequired),
+            N is MaxHits - NumRequired,
+            sample(N, BookHits, SampledHits),
+            maplist({BookHits}/[Verse, hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma)]>>(
+                Verse =.. [BookName, ChapterNumber, VerseNumber], 
+                member(hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma), BookHits)),
+                RequiredVerses,
+                RequiredHits),
+            append(RequiredHits, SampledHits, UseHits)
+        )
+    ;   UseHits = BookHits
     ),
 
     format(atom(MarkdownFile), 'analyses/~w.md', Word),
-    find_results_to_markdown(UseHits, MarkdownFile).
+    find_results_to_markdown(UseHits, MarkdownFile),
+    !.
+
+study(Word) :-
+    findall(BookName, book(BookName, _, _, _, _), Books),
+    study(Word, 20, Books, []).
+
+% καταλαμβανω, γινωσκω, σκηνοω, εξηγεομαι

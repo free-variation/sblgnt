@@ -1,3 +1,8 @@
+% extremely useful debugging utility
+:- op(920, fy, *).
+* _.
+
+
 remove_accent('ί', 'ι').
 remove_accent('Ἰ', 'Ι').
 remove_accent('ὶ', 'ι').
@@ -85,5 +90,41 @@ sample(N, List, Sample) :-
     permutation(List, PermutedList),
     length(Sample, N),
     append(Sample, _, PermutedList).
+
+is_empty('').
+is_empty("").
+is_empty(S) :-
+    re_match("^\\s+$", S).
+
+strip(S, S1) :-
+    normalize_space(string(S1), S).
+
+empty_markdown_row(MarkdownRow) :-
+    atomics_to_string(Pieces, '|', MarkdownRow),
+    exclude(is_empty, Pieces, []).
+
+markdown_row_to_list(MarkdownRow, List) :-
+    atomics_to_string(Pieces, '|', MarkdownRow),
+    Pieces = [_ | RestPieces],
+    reverse(RestPieces, [_ | RevPieces]),
+    reverse(RevPieces, Bits),
+    maplist(strip, Bits, List).
+
+markdown_table_to_lists(MarkdownTable, Lists) :-
+    atomics_to_string(MarkdownRows, '\n', MarkdownTable),
+    MarkdownRows = [_, _ | RestRows],
+    exclude({}/['']>>(true), RestRows, RestRows1),
+    exclude(empty_markdown_row, RestRows1, RestRows2),
+    maplist(markdown_row_to_list, RestRows2, Lists).
+
+markdown_table_to_lists(MarkdownTable, []) :-
+    atomics_to_string(MarkdownRows, '\n', MarkdownTable),
+    MarkdownRows = [_].
+
+remove_quotes(QuotedString, UnquotedString) :-
+    (   string(QuotedString); atom(QuotedString) ),
+    re_matchsub("^\"(.*)\"$", QuotedString, Sub),
+    UnquotedString = Sub.1, !.
+remove_quotes(X, X).
     
 
