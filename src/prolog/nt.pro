@@ -275,7 +275,7 @@ find(UnaccentedLemma, Hits) :-
 expand_hit(hit(Text, BookName, ChapterNumber, VerseNumber, POS, Features, Lemma), ExpandedHit) :-
     book(BookName, _Author, _FullName, Abbrev, _Chapters),
     atomics_to_string(Features, ',', FeaturesString),
-    format(string(Citation), '~w ~w.~w', [Abbrev, ChapterNumber, VerseNumber]),
+    format(string(Citation), '~w ~w:~w', [Abbrev, ChapterNumber, VerseNumber]),
 
     format_verse(BookName, ChapterNumber, VerseNumber, Text, FormattedVerse),
 
@@ -327,7 +327,7 @@ _{FormattedVerse}_
 
     |}.
 
-get_translated_words(Citation, Translations, [Citation | TranslatedWordsNoQuotes]) :-
+get_translated_words(Citation, FeatureBundle, Translations, [Citation, FeatureBundle | TranslatedWordsNoQuotes]) :-
     markdown_table_to_lists(Translations, TranslationRows),
     maplist(nth1(2), TranslationRows, TranslatedWords),
     maplist(remove_quotes, TranslatedWords, TranslatedWordsNoQuotes).
@@ -336,12 +336,15 @@ get_translated_words(Citation, Translations, [Citation | TranslatedWordsNoQuotes
 find_results_to_markdown(Hits, MarkdownFile) :-
     concurrent_maplist(expand_hit, Hits, HitLists),
 
-    maplist({}/[Hit, Citation]>>(nth1(1, Hit, Citation)), HitLists, Citations),
-    maplist({}/[Hit, WordTranslations]>>(nth1(9, Hit, WordTranslations)), HitLists, Translations),
-    maplist(get_translated_words, Citations, Translations, TranslatedWords),
+    maplist({}/[Hit, Citation, Features, WordTranslations]>>(
+        nth1(1, Hit, Citation),
+        nth1(5, Hit, Features),
+        nth1(9, Hit, WordTranslations)),
+        HitLists, Citations, FeatureBundles, Translations),
+    maplist(get_translated_words, Citations, FeatureBundles, Translations, TranslatedWords),
     translations(Versions),
     maplist(upcase_atom, Versions, VERSIONS),
-    markdown_table(['Citation' | VERSIONS], TranslatedWords, TranslationsTable),
+    markdown_table(['Citation', 'Features' | VERSIONS], TranslatedWords, TranslationsTable),
 
     maplist(markdown_hit, HitLists, MarkdownHits),
    
