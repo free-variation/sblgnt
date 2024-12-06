@@ -13,7 +13,7 @@ book_name(4, john, john, 'John', 'John').
 book_name(5, acts, luke, 'Acts', 'Acts').
 book_name(6, romans, paul, 'Romans', 'Rom.').
 book_name(7, i_corinthians, paul, '1 Corinthians', '1 Cor.').
-book_name(8, ii_corintians, paul, '2 Corinthians', '2 Cor.').
+book_name(8, ii_corinthians, paul, '2 Corinthians', '2 Cor.').
 book_name(9, galatians, paul, 'Galatians', 'Gal.').
 book_name(10, ephesians, paul, 'Ephesians', 'Eph.').
 book_name(11, philippians, paul, 'Philippians', 'Phil.').
@@ -91,9 +91,9 @@ case('G', genitive).
 case('D', dative).
 case('V', vocative).
 
-case('-', []).
-case('S', singular).
-case('P', plural).
+number('-', []).
+number('S', singular).
+number('P', plural).
 
 gender('-', []).
 gender('F', feminine).
@@ -131,7 +131,7 @@ parse_word(Word, ParsedWord) :-
     case(CaseCode, Case),
 
     sub_atom(X3, 5, 1, _, NumberCode),
-    case(NumberCode, Number),
+    number(NumberCode, Number),
 
     sub_atom(X3, 6, 1, _, GenderCode),
     gender(GenderCode, Gender),
@@ -230,7 +230,7 @@ assert_book(book(BookName, Author, FullName, Abbrev, Chapters)) :-
 assert_nt(nt(Books, Words)) :-
     maplist(assertz, Words),
     maplist(assert_book, Books),
-    assert(nt(Books, Words)).
+    assertz(nt(Books, Words)).
 
 format_word(TargetText, Word, FormattedWord) :-
     arg(2, Word, Text),

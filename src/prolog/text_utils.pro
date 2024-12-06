@@ -1,7 +1,8 @@
+:- use_module(library(pcre)). 
+
 % extremely useful debugging utility
 :- op(920, fy, *).
 * _.
-
 
 remove_accent('ί', 'ι').
 remove_accent('Ἰ', 'Ι').
@@ -12,7 +13,7 @@ remove_accent('ἶ', 'ι').
 remove_accent('ΐ', 'ι').
 remove_accent('ἴ', 'ι').
 remove_accent('ἱ', 'ι').
-remove_accent('ἴ', 'ι').
+remove_accent('ἵ', 'ι').
 
 remove_accent('ό', 'ο').
 remove_accent('ὸ', 'ο').
@@ -23,7 +24,7 @@ remove_accent('ὄ', 'ο').
 remove_accent('ἐ', 'ε').
 remove_accent('ὲ', 'ε').
 remove_accent('έ', 'ε').
-remove_accent('ἐ', 'ε').
+remove_accent('ἑ', 'ε').
 remove_accent('ἕ', 'ε').
 remove_accent('ἔ', 'ε').
 
@@ -48,7 +49,7 @@ remove_accent('ἀ', 'α').
 remove_accent('ά', 'α').
 remove_accent('ἄ', 'α').
 remove_accent('ὰ', 'α').
-remove_accent('Ἀ', 'α').
+remove_accent('Ἀ', 'Α').
 remove_accent('ἁ', 'α').
 remove_accent('ἅ', 'α').
 remove_accent('ᾶ', 'α').
@@ -111,11 +112,21 @@ markdown_row_to_list(MarkdownRow, List) :-
     maplist(strip, Bits, List).
 
 markdown_table_to_lists(MarkdownTable, Lists) :-
-    atomics_to_string(MarkdownRows, '\n', MarkdownTable),
-    MarkdownRows = [_, _ | RestRows],
-    exclude({}/['']>>(true), RestRows, RestRows1),
-    exclude(empty_markdown_row, RestRows1, RestRows2),
-    maplist(markdown_row_to_list, RestRows2, Lists).
+    % Split the input into lines
+    atomics_to_string(AllLines, '\n', MarkdownTable),
+    % Remove any empty or whitespace-only lines
+    exclude(is_empty, AllLines, NonEmptyLines),
+
+    % Expect at least a header row and a separator row
+    (   NonEmptyLines = [HeaderLine, SeparatorLine | DataLines]
+    ->  % Filter out empty or invalid rows among the data lines
+        exclude(empty_markdown_row, DataLines, ValidDataLines),
+        % Convert each valid data line into a list of cells
+        maplist(markdown_row_to_list, ValidDataLines, Lists)
+    ;   % If there aren't enough lines to form a table, return []
+        Lists = []
+    ).
+
 
 markdown_table_to_lists(MarkdownTable, []) :-
     atomics_to_string(MarkdownRows, '\n', MarkdownTable),
